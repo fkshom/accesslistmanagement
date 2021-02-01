@@ -30,15 +30,31 @@ class AccessListEntery():
         self.remaining = tmp
 
         hostname_from, hostname_to, protname, is_ret, action = None, None, None, None, None
+        self.is_description_valid = False
         m = re.fullmatch(r'([^-]+)-([^_]+)_([^_]+)_(RET_)?(ALLOW)', self.description)
         if m:
             hostname_from, hostname_to, protname, is_ret, action, = m.groups()
+            self.is_description_valid = True
 
         self.hostname_from = hostname_from
         self.hostname_to = hostname_to
         self.protname = protname
         self.is_ret = is_ret
         self.action = action
+
+    def validate(self):
+        mess = []
+        for key in 'description prot srcip srcport dstip dstport'.split():
+            if not getattr(self, key, None):
+                mess.append(f"{key} is empty")
+
+        if not self.is_description_valid:
+            mess.append(f"description format is invalid.")
+
+        if self.remaining.keys():
+            mess.append(f"Extra keys '{ ','.join(self.remaining.keys()) }' is given.")
+
+        return mess
 
     @property
     def host_from(self):
@@ -89,6 +105,13 @@ class AccessListManager():
 
         return yaml.dump(data, sort_keys=False, width=200)
 
+    def validate(self):
+        for acle in self.acls:
+            mess = acle.validate()
+            if mess != []:
+                print(acle.to_dict())
+                print(mess)
+
     @property
     def dcnames(self):
         tmp = [acle.dcname for acle in self.acls]
@@ -113,7 +136,7 @@ class AccessListManager():
 def main():
     alm = AccessListManager()
     alm.add_file("acl.yml")
-    # alm.verify()
+    print(alm.validate())
     print(alm.to_yaml())
 
     for hostname in alm.hostnames:
